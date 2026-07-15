@@ -1,43 +1,54 @@
-from dotenv import load_dotenv
-from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
-from langchain_groq import ChatGroq
+from typing import List
 
+from pydantic import BaseModel, Field
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
+from langchain.agents import create_agent
+from langchain.tools import tool #c'est une fonction qu'un agent peut utiliser pour accomplir une tâche
+from langchain_core.messages import HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_tavily import TavilySearch
+
+
+
+# from tavily import TavilyClient
+
+# tavily = TavilyClient()
+
+# @tool
+# def search(query: str) -> str:
+#     """
+#     Tool that serches over internet
+#     Args:
+#         query (str): The query to search for
+#         Returns:
+#             The search results
+#     """
+#     print(f"Searching for: {query}")
+#     return tavily.search(query=query)
+
+class Source(BaseModel):
+    """Schema for a source used b the agent"""
+    url:str = Field(description="The URL of the source")
+    
+class AgentResponse(BaseModel):
+    """Schema for agent with answer and"""
+    answer:str = Field(description="The agent answer's to the query")
+    sources:List[Source] = Field(default_factory=list, description="List of sources used to generate the answer")
+
+llm= ChatOpenAI(model="gpt-5")
+tools = [TavilySearch()]
+agent = create_agent(model=llm,tools=tools,response_format=AgentResponse)
+
+
 def main():
     print("Hello from langchain-course!")
-    information=  """
-    Elon Reeve Musk (/ˈiːlɒn/ ⓘ EE-lon; born June 28, 1971) is a businessman and former public official who is the CEO and largest shareholder of Tesla and SpaceX. Musk has been the wealthiest person in the world since 2025, and became the only trillionaire in terms of US dollars in June 2026; as of July 10, 2026, Forbes estimates his net worth to be US$917 billion.
+    result = agent.invoke({"messages":HumanMessage(content="search for 3 job postings for an devops or SRE engineer with ai skills  in France area on linkedin where applications are still open and list their details")})
+    print(result)
 
-Born into the wealthy Musk family in Pretoria, South Africa, Musk emigrated in 1989 to Canada; he has Canadian citizenship since his mother was born there. He received bachelor's degrees in 1997 from the University of Pennsylvania before moving to California to pursue business ventures. In 1995, Musk co-founded Zip2, a web software company. Following its sale in 1999, he co-founded X.com, an e-commerce payment system that merged with Confinity in March 2000 to form PayPal, which was acquired by eBay in 2002. Musk also became an American citizen in 2002.
-
-In 2002, Musk founded and became CEO and chief engineer of SpaceX, a space technology company; the company has since led innovations in reusable rockets and commercial spaceflight. Musk joined Tesla as an early investor in 2004 and became its CEO and product architect in 2008; it has since become a leader in electric vehicles. In 2015, Musk co-founded OpenAI to advance artificial intelligence (AI) research, but later left; his growing discontent with the organization's direction and leadership in the AI boom in the 2020s led him to establish xAI, which became a subsidiary of SpaceX in 2026. In 2022, he acquired Twitter, a social networking service; he implemented significant changes and rebranded it as X in 2023. His other businesses include Neuralink, a neurotechnology company that he co-founded in 2016, and the Boring Company, a tunneling company that he founded in 2017. In November 2025, Tesla approved a pay package worth $1 trillion for Musk, which he is to receive over 10 years if certain milestones are met, such as achieving a market capitalization of $8.5 trillion.
-
-Musk is a supporter of global far-right politics, figures, and political parties. He was the largest donor in the 2024 U.S. presidential election, where he supported Donald Trump. After Trump was inaugurated in January 2025, Musk served as Senior Advisor to the President and as the de facto head of the Department of Government Efficiency (DOGE). Musk left the Trump administration in May 2025 and returned to managing his companies; shortly thereafter he had a public feud with Trump.
-
-Musk's political activities, statements and views have made him a polarizing figure. He has been criticized for making unscientific and misleading statements, including spreading COVID-19 misinformation, promoting conspiracy theories, and affirming antisemitic, white nationalist, racist, and transphobic comments. His acquisition of Twitter was controversial because, following his pledge to decrease censorship, there was an increase in hate speech and misinformation on the service. His role in the second Trump administration attracted public backlash, particularly in response to DOGE and its cuts to the US Agency for International Development (USAID).
-    """
-
-    summary_template = """
-    given the following information {information} about a person, i want to create:
-    1. A surt summary
-    2. two interesting facts about the them
-    """
-
-    summary_prompt_template = PromptTemplate(
-    input_variables=["information"],
-    template=summary_template
-)
-
-    llm = ChatOpenAI(temperature=0, model_name="gpt-5")
-    # llm = ChatOllama( temperature=0, model="gemma3:270m")
-    chain = summary_prompt_template | llm
-
-    response = chain.invoke({"information": information})
-    print(response.content)
 
 if __name__ == "__main__":
     main()
